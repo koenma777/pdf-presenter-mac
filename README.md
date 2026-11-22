@@ -1,5 +1,7 @@
 # PDF Presenter
 
+![PDF Presenter：外部モニタにスライド、MacBookに発表者ビュー、スマホにリモコン](docs/images/hero.png)
+
 PDFを PowerPoint のプレゼンモードと同じ体験で発表する macOS 専用アプリ。
 
 - **外部モニタ／プロジェクタ** … 現在のスライドを全画面表示（黒背景・レターボックス）
