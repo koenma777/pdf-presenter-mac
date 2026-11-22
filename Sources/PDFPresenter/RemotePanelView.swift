@@ -3,7 +3,8 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 
 /// 発表者ビューの現在スライドに重ねる、スマホリモコン用のQRカード（白い角丸）。
-/// 中身は「QR＋その下にURL」か「短いメッセージ」のどちらか。見出しや説明文は置かない。
+/// 中身は「QR＋その下にURL＋つながらないときの一言」か「短いメッセージ」のどちらか。見出しは置かない。
+/// 一言は、会場Wi-Fiが機器どうしの通信を止めていてスマホが読み込み中のまま止まるとき向け。
 final class RemotePanelView: NSView {
 
     enum Content {
@@ -29,10 +30,15 @@ final class RemotePanelView: NSView {
     private let inset: CGFloat = 24
     private let urlGap: CGFloat = 12
     private let urlHeight: CGFloat = 16
+    private let hintGap: CGFloat = 4
+    private let hintHeight: CGFloat = 15
+    /// QRのときだけ出す一言の分の高さ
+    private var hintSpace: CGFloat { hintGap + hintHeight }
     private let cornerRadius: CGFloat = 18
 
     private let urlLabel = NSTextField(labelWithString: "")
     private let messageLabel = NSTextField(wrappingLabelWithString: "")
+    private let hintLabel = NSTextField(labelWithString: "開かないときはテザリングにつないで R を押し直す")
     /// 1モジュール1ピクセルのQR画像（拡大は描画時に補間なしで行う）
     private var qrImage: CGImage?
 
@@ -61,8 +67,14 @@ final class RemotePanelView: NSView {
         messageLabel.textColor = NSColor(white: 0.2, alpha: 1)
         messageLabel.alignment = .center
 
+        hintLabel.font = NSFont.systemFont(ofSize: 11, weight: .regular)
+        hintLabel.textColor = NSColor(white: 0.5, alpha: 1)
+        hintLabel.alignment = .center
+        hintLabel.lineBreakMode = .byTruncatingTail
+
         addSubview(urlLabel)
         addSubview(messageLabel)
+        addSubview(hintLabel)
         setContent(.pending)
     }
 
@@ -75,16 +87,19 @@ final class RemotePanelView: NSView {
             qrImage = nil
             urlLabel.isHidden = true
             messageLabel.isHidden = true
+            hintLabel.isHidden = true
         case .qr(let url):
             qrImage = Self.makeQRCode(for: url)
             urlLabel.stringValue = url
             urlLabel.isHidden = false
             messageLabel.isHidden = true
+            hintLabel.isHidden = false
         case .message(let text):
             qrImage = nil
             messageLabel.stringValue = text
             urlLabel.isHidden = true
             messageLabel.isHidden = false
+            hintLabel.isHidden = true
         }
         needsLayout = true
         needsDisplay = true
@@ -96,13 +111,13 @@ final class RemotePanelView: NSView {
     /// 与えられた領域（現在スライドの枠）に収まるカードの大きさ
     func cardSize(fitting available: NSSize) -> NSSize {
         let qrSide = self.qrSide(fitting: available)
-        return NSSize(width: qrSide + inset * 2, height: qrSide + inset * 2 + urlGap + urlHeight)
+        return NSSize(width: qrSide + inset * 2, height: qrSide + inset * 2 + urlGap + urlHeight + hintSpace)
     }
 
     private func qrSide(fitting available: NSSize) -> CGFloat {
         let margin: CGFloat = 16
         let maxByWidth = available.width - margin * 2 - inset * 2
-        let maxByHeight = available.height - margin * 2 - inset * 2 - urlGap - urlHeight
+        let maxByHeight = available.height - margin * 2 - inset * 2 - urlGap - urlHeight - hintSpace
         // ふだんは目安の一辺。モジュールが多い（URLが長い）ときは、1モジュール8ptを目指して上限まで広げる
         var target = preferredQRSide
         if let modules = qrImage?.width, modules > 0 {
@@ -134,6 +149,8 @@ final class RemotePanelView: NSView {
             fontSize -= 0.5
         }
         urlLabel.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        hintLabel.frame = NSRect(x: 8, y: urlLabel.frame.minY - hintGap - hintHeight,
+                                 width: bounds.width - 16, height: hintHeight)
         let messageHeight = messageLabel.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: qr.width, height: 200)).height ?? 40
         messageLabel.frame = NSRect(x: inset, y: (bounds.height - messageHeight) / 2,
                                     width: bounds.width - inset * 2, height: messageHeight)
